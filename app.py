@@ -258,8 +258,8 @@ def sidebar_filters(all_rows):
         sort_direction = st.selectbox(
             "Order",
             [
-                "Highest / Newest first",
-                "Lowest / Oldest first",
+                "Newest first",
+                "Oldest first",
             ],
             key="global_sort_direction",
         )
@@ -546,9 +546,17 @@ def render_sample_card(row):
 
         with status_col:
             if status == "Completed":
-                st.badge("Completed", icon=":material/check_circle:")
+                st.badge(
+                    "Completed",
+                    icon=":material/check_circle:",
+                    color="green",
+                )
             else:
-                st.badge("WIP", icon=":material/pending:")
+                st.badge(
+                    "WIP",
+                    icon=":material/pending:",
+                    color="orange",
+                )
 
         with view_col:
             if st.button(
