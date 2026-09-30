@@ -542,7 +542,7 @@ def render_sample_card(row):
 
         with title_col:
             st.markdown(f"### {article}")
-            st.caption(f"{color}  •  {Buyer}")
+            st.caption(f"{color}  •  {buyer}")
 
         with status_col:
             if status == "Completed":
