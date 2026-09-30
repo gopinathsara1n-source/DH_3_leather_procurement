@@ -392,11 +392,14 @@ def show_sample_details(row):
     row_id = row.get("id")
     article = row.get("article") or "—"
     color = row.get("color") or "—"
+    buyer = row.get("buyer") or "—"
     status = row.get("status") or "WIP"
 
     st.subheader(article)
+
+    # Indent No. • Color • Buyer
     st.caption(
-        f"{row.get('indent_no', '—')}  •  {color}"
+        f"{row.get('indent_no', '—')}  •  {color}  •  {buyer}"
     )
 
     if status == "WIP":
@@ -406,25 +409,47 @@ def show_sample_details(row):
 
     st.markdown("### Sample Information")
 
+    # Row 1: Thickness | Avg. Area | Quantity
     c1, c2, c3 = st.columns(3)
-    c1.metric("Buyer", row.get("buyer") or "—")
-    c2.metric("Supplier", row.get("supplier") or "—")
-    c3.metric("Quantity", f"{int(row.get('quantity') or 0):,}")
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Thickness", row.get("thickness_mm") or "—")
+    c1.metric(
+        "Thickness",
+        row.get("thickness_mm") or "—",
+    )
+
     c2.metric(
         "Avg. Area",
         f"{float(row.get('avg_area_sdm') or 0):.2f} SDM",
     )
 
-    days = lead_days(row)
     c3.metric(
+        "Quantity",
+        f"{int(row.get('quantity') or 0):,}",
+    )
+
+    # Row 2: Indent No. | Lead Days | Supplier
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric(
+        "Indent No.",
+        row.get("indent_no") or "—",
+    )
+
+    days = lead_days(row)
+
+    c2.metric(
         "Lead Days",
         f"{days} days" if days is not None else "—",
     )
 
+    c3.metric(
+        "Supplier",
+        row.get("supplier") or "—",
+    )
+
+    # Row 3: Order Date | Delivered Date | Status
     c1, c2, c3 = st.columns(3)
+
     c1.write("**Order Date**")
     c1.write(format_date(row.get("order_date")))
 
@@ -434,10 +459,7 @@ def show_sample_details(row):
     c3.write("**Status**")
     c3.write(status)
 
-    st.caption(f"Unique ID: {row.get('unique_id') or '—'}")
-
     st.divider()
-
     # Exactly two actions/options inside the dialog.
     remarks_tab, complete_tab = st.tabs([
         "📝 Update Remarks",
