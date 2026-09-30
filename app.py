@@ -566,29 +566,30 @@ def render_sample_card(row):
 
         with c1:
             st.caption("Thickness")
-            st.write(buyer)
+            st.write(thickness)
 
         with c2:
             st.caption("Avg. Area")
-            st.write(supplier)
+            st.write(f"{avg_area:.2f} SDM")
 
         with c3:
             st.caption("Quantity")
-            st.write(thickness)
+            st.write(quantity)
 
         c1, c2, c3 = st.columns(3, vertical_alignment="top")
 
         with c1:
             st.caption("indent_no")
-            st.write(f"{quantity:,}")
+            st.write(f"{indent_no:,}")
 
         with c2:
             st.caption("Lead Days")
-            st.write(f"{avg_area:.2f} SDM")
+            st.write(f"{days} days" if days is not None else "—")
+
 
         with c3:
             st.caption("Supplier")
-            st.write(f"{days} days" if days is not None else "—")
+            st.write(supplier)
 
 # =========================================================
 # TABLE
