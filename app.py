@@ -169,7 +169,7 @@ def clear_all_filters():
     st.session_state["global_articles"] = []
     st.session_state["global_colors"] = []
     st.session_state["global_sort_by"] = "Lead Days"
-    st.session_state["global_sort_direction"] = "Older first"
+    st.session_state["global_sort_direction"] = "Highest / Newest first"
 
 
 def sidebar_filters(all_rows):
@@ -258,8 +258,8 @@ def sidebar_filters(all_rows):
         sort_direction = st.selectbox(
             "Order",
             [
-                "Older first",
-                "Newest first",
+                "Highest / Newest first",
+                "Lowest / Oldest first",
             ],
             key="global_sort_direction",
         )
@@ -322,7 +322,7 @@ def apply_filters(rows, filters):
 
 def sort_rows(rows, filters):
     sort_by = filters["sort_by"]
-    descending = filters["sort_direction"] == "Older first"
+    descending = filters["sort_direction"] == "Highest / Newest first"
 
     def sort_value(row):
         if sort_by == "Lead Days":
@@ -392,93 +392,58 @@ def show_sample_details(row):
     row_id = row.get("id")
     article = row.get("article") or "—"
     color = row.get("color") or "—"
-    buyer = row.get("buyer") or "—"
     status = row.get("status") or "WIP"
 
-    # =========================================================
-    # ARTICLE
-    # =========================================================
     st.subheader(article)
+    st.caption(
+        f"{row.get('indent_no', '—')}  •  {color}"
+    )
 
-    # Color • Buyer
-    st.caption(f"{color}  •  {buyer}")
-
-    # =========================================================
-    # STATUS MESSAGE
-    # =========================================================
     if status == "WIP":
         st.info("This sample is currently WIP.", icon="🔵")
     else:
         st.success("This sample is Completed.", icon="✅")
 
-    # =========================================================
-    # SAMPLE INFORMATION
-    # =========================================================
     st.markdown("### Sample Information")
 
-    # Thickness | Avg. Area | Quantity
     c1, c2, c3 = st.columns(3)
+    c1.metric("Buyer", row.get("buyer") or "—")
+    c2.metric("Supplier", row.get("supplier") or "—")
+    c3.metric("Quantity", f"{int(row.get('quantity') or 0):,}")
 
-    c1.metric(
-        "Thickness",
-        row.get("thickness_mm") or "—",
-    )
-
-    try:
-        avg_area = float(row.get("avg_area_sdm") or 0)
-        avg_area_text = f"{avg_area:.2f} SDM"
-    except (TypeError, ValueError):
-        avg_area_text = "—"
-
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Thickness", row.get("thickness_mm") or "—")
     c2.metric(
         "Avg. Area",
-        avg_area_text,
-    )
-
-    try:
-        quantity = int(row.get("quantity") or 0)
-        quantity_text = f"{quantity:,}"
-    except (TypeError, ValueError):
-        quantity_text = "—"
-
-    c3.metric(
-        "Quantity",
-        quantity_text,
-    )
-
-    # Indent No. | Lead Days | Supplier
-    c1, c2, c3 = st.columns(3)
-
-    c1.metric(
-        "Indent No.",
-        row.get("indent_no") or "—",
+        f"{float(row.get('avg_area_sdm') or 0):.2f} SDM",
     )
 
     days = lead_days(row)
-
-    c2.metric(
+    c3.metric(
         "Lead Days",
         f"{days} days" if days is not None else "—",
     )
 
-    c3.metric(
-        "Supplier",
-        row.get("supplier") or "—",
-    )
+    c1, c2, c3 = st.columns(3)
+    c1.write("**Order Date**")
+    c1.write(format_date(row.get("order_date")))
+
+    c2.write("**Delivered Date**")
+    c2.write(format_date(row.get("delivered_date")))
+
+    c3.write("**Status**")
+    c3.write(status)
+
+    st.caption(f"Unique ID: {row.get('unique_id') or '—'}")
 
     st.divider()
 
-    # =========================================================
-    # ACTIONS
-    # =========================================================
+    # Exactly two actions/options inside the dialog.
     remarks_tab, complete_tab = st.tabs([
         "📝 Update Remarks",
         "✅ Complete Order",
     ])
 
-    # =========================================================
-    # UPDATE REMARKS
-    # =========================================================
     with remarks_tab:
         with st.form(f"remarks_form_{row_id}"):
             remarks = st.text_area(
@@ -506,15 +471,11 @@ def show_sample_details(row):
             except Exception as exc:
                 st.error(f"Could not update remarks: {exc}")
 
-    # =========================================================
-    # COMPLETE ORDER
-    # =========================================================
     with complete_tab:
         if status == "Completed":
             st.success(
                 f"This order was completed on "
-                f"{format_date(row.get('delivered_date'))}.",
-                icon="✅",
+                f"{format_date(row.get('delivered_date'))}."
             )
         else:
             st.write("Enter the delivery date to complete this order.")
@@ -543,7 +504,6 @@ def show_sample_details(row):
                 except Exception as exc:
                     st.error(f"Could not complete sample: {exc}")
 
-
 # =========================================================
 # SAMPLE CARD
 # =========================================================
@@ -560,40 +520,35 @@ def render_sample_card(row):
 
     try:
         quantity = int(row.get("quantity") or 0)
-    except (TypeError, ValueError):
+    except Exception:
         quantity = 0
 
     try:
         avg_area = float(row.get("avg_area_sdm") or 0)
-    except (TypeError, ValueError):
+    except Exception:
         avg_area = 0
 
     days = lead_days(row)
     status = row.get("status") or "WIP"
 
+    # IMPORTANT:
+    # There is intentionally NO key on this container.
+    # The database primary key is used only for interactive widgets.
     with st.container(border=True, height=330):
-        # Header: Article | Status | View
         title_col, status_col, view_col = st.columns(
-            [5.5, 1.5, 1],
+            [4.5, 1.5, 1],
             vertical_alignment="center",
         )
 
         with title_col:
             st.markdown(f"### {article}")
+            st.caption(f"{indent_no}  •  {color}")
 
         with status_col:
             if status == "Completed":
-                st.badge(
-                    "Completed",
-                    icon=":material/check_circle:",
-                    color="green",
-                )
+                st.badge("Completed", icon=":material/check_circle:")
             else:
-                st.badge(
-                    "WIP",
-                    icon=":material/pending:",
-                    color="orange",
-                )
+                st.badge("WIP", icon=":material/pending:")
 
         with view_col:
             if st.button(
@@ -603,46 +558,37 @@ def render_sample_card(row):
             ):
                 show_sample_details(row)
 
-        # Color | Buyer | Lead Days
-        c1, c2, c3 = st.columns(3, vertical_alignment="top")
-
-        with c1:
-            st.caption("COLOR")
-            st.write(color)
-
-        with c2:
-            st.caption("BUYER")
-            st.write(buyer)
-
-        with c3:
-            st.caption("LEAD DAYS")
-            st.write(f"{days} days" if days is not None else "—")
-
-        # Indent No.
-        st.caption("INDENT NO.")
-        st.write(indent_no)
-
         st.divider()
 
-        # Thickness | Avg. Area | Quantity
+        # Two balanced rows make the cards more uniform than one
+        # five-column row, especially for long supplier/article names.
         c1, c2, c3 = st.columns(3, vertical_alignment="top")
 
         with c1:
-            st.caption("THICKNESS")
-            st.write(thickness)
+            st.caption("Buyer")
+            st.write(buyer)
 
         with c2:
-            st.caption("AVG. AREA")
+            st.caption("Supplier")
+            st.write(supplier)
+
+        with c3:
+            st.caption("Thickness")
+            st.write(thickness)
+
+        c1, c2, c3 = st.columns(3, vertical_alignment="top")
+
+        with c1:
+            st.caption("Quantity")
+            st.write(f"{quantity:,}")
+
+        with c2:
+            st.caption("Avg. Area")
             st.write(f"{avg_area:.2f} SDM")
 
         with c3:
-            st.caption("QUANTITY")
-            st.write(f"{quantity:,}")
-
-        # Supplier
-        st.caption("SUPPLIER")
-        st.write(supplier)
-
+            st.caption("Lead Days")
+            st.write(f"{days} days" if days is not None else "—")
 
 # =========================================================
 # TABLE
@@ -661,8 +607,12 @@ def display_table(rows):
             "Thickness": row.get("thickness_mm", ""),
             "Avg. Area (SDM)": row.get("avg_area_sdm", ""),
             "Quantity": row.get("quantity", ""),
+            "Remarks": row.get("remarks", ""),
             "Supplier": row.get("supplier", ""),
+            "Delivered Date": row.get("delivered_date") or "",
+            "Status": row.get("status", ""),
             "Lead Days": lead_days(row),
+            "Unique ID": row.get("unique_id", ""),
         })
 
     st.dataframe(
@@ -684,7 +634,6 @@ def display_table(rows):
             ),
         },
     )
-
 
 # =========================================================
 # ADD SAMPLE
