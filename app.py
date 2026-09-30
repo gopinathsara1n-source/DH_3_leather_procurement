@@ -580,7 +580,7 @@ def render_sample_card(row):
 
         with c1:
             st.caption("indent_no")
-            st.write(f"{indent_no:,}")
+            st.write(indent_no)
 
         with c2:
             st.caption("Lead Days")
