@@ -13,7 +13,6 @@ st.set_page_config(
     layout="wide",
 )
 
-
 TABLE = "samples"
 
 
@@ -31,7 +30,6 @@ BUYERS = [
     "SPARTINA 449",
     "TAILORED BRANDS",
 ]
-
 
 SUPPLIERS = [
     "BALAMURUGAN LEATHER",
@@ -71,7 +69,6 @@ def get_supabase() -> Client:
 
 try:
     supabase = get_supabase()
-
 except Exception as exc:
     st.error(f"Unable to connect to Supabase: {exc}")
     st.stop()
@@ -82,7 +79,6 @@ except Exception as exc:
 # =========================================================
 
 def make_unique_id(indent_no, article, color):
-
     return (
         f"{str(indent_no).strip()} | "
         f"{str(article).strip()} | "
@@ -103,7 +99,6 @@ def parse_date(value):
             str(value)[:10],
             "%Y-%m-%d"
         ).date()
-
     except Exception:
         return None
 
@@ -193,162 +188,197 @@ def search_rows(rows, query):
 
 
 # =========================================================
-# FILTERS
+# SHARED FILTER SIDEBAR
 # =========================================================
 
-def apply_sidebar_filters(rows, prefix):
+def sidebar_filters(all_rows):
 
     buyers = sorted({
         str(row.get("buyer")).strip()
-        for row in rows
+        for row in all_rows
         if row.get("buyer")
     })
 
     suppliers = sorted({
         str(row.get("supplier")).strip()
-        for row in rows
+        for row in all_rows
         if row.get("supplier")
     })
 
     articles = sorted({
         str(row.get("article")).strip()
-        for row in rows
+        for row in all_rows
         if row.get("article")
     })
 
     colors = sorted({
         str(row.get("color")).strip()
-        for row in rows
+        for row in all_rows
         if row.get("color")
     })
 
-
-    # -----------------------------------------------------
-    # SIDEBAR
-    # -----------------------------------------------------
 
     with st.sidebar:
 
         st.header("🔎 Filters")
 
         st.caption(
-            "Use the filters below to narrow the sample list."
+            "Search and filter samples"
         )
 
         search = st.text_input(
             "Search",
-            placeholder=(
-                "Indent, buyer, article, color..."
-            ),
-            key=f"{prefix}_search",
+            placeholder="Indent, buyer, article, color...",
+            key="global_search",
         )
 
         st.divider()
+
 
         selected_buyers = st.multiselect(
             "Buyer",
             buyers,
-            key=f"{prefix}_buyers",
+            key="global_buyers",
             placeholder="All buyers",
         )
+
 
         selected_suppliers = st.multiselect(
             "Supplier",
             suppliers,
-            key=f"{prefix}_suppliers",
+            key="global_suppliers",
             placeholder="All suppliers",
         )
+
 
         selected_articles = st.multiselect(
             "Article",
             articles,
-            key=f"{prefix}_articles",
+            key="global_articles",
             placeholder="All articles",
         )
+
 
         selected_colors = st.multiselect(
             "Color",
             colors,
-            key=f"{prefix}_colors",
+            key="global_colors",
             placeholder="All colors",
         )
 
+
         st.divider()
 
+        st.subheader("↕ Sorting")
+
+
+        sort_by = st.selectbox(
+            "Sort by",
+            [
+                "Lead Days",
+                "Order Date",
+                "Quantity",
+                "Buyer",
+                "Article",
+                "Supplier",
+                "Color",
+            ],
+            key="global_sort_by",
+        )
+
+
+        sort_direction = st.selectbox(
+            "Order",
+            [
+                "Highest / Newest first",
+                "Lowest / Oldest first",
+            ],
+            key="global_sort_direction",
+        )
+
+
+        st.divider()
+
+
         if st.button(
-            "↺ Clear Filters",
+            "↻ Clear Filters",
             use_container_width=True,
-            key=f"{prefix}_clear",
+            key="clear_all_filters",
         ):
 
-            st.session_state[f"{prefix}_search"] = ""
-            st.session_state[f"{prefix}_buyers"] = []
-            st.session_state[f"{prefix}_suppliers"] = []
-            st.session_state[f"{prefix}_articles"] = []
-            st.session_state[f"{prefix}_colors"] = []
+            st.session_state["global_search"] = ""
+            st.session_state["global_buyers"] = []
+            st.session_state["global_suppliers"] = []
+            st.session_state["global_articles"] = []
+            st.session_state["global_colors"] = []
+            st.session_state["global_sort_by"] = "Lead Days"
+            st.session_state["global_sort_direction"] = (
+                "Highest / Newest first"
+            )
 
             st.rerun()
 
 
-    # -----------------------------------------------------
-    # APPLY SEARCH
-    # -----------------------------------------------------
+    return {
+        "search": search,
+        "buyers": selected_buyers,
+        "suppliers": selected_suppliers,
+        "articles": selected_articles,
+        "colors": selected_colors,
+        "sort_by": sort_by,
+        "sort_direction": sort_direction,
+    }
+
+
+# =========================================================
+# APPLY FILTERS
+# =========================================================
+
+def apply_filters(rows, filters):
 
     filtered = search_rows(
         rows,
-        search
+        filters["search"]
     )
 
 
-    # -----------------------------------------------------
-    # APPLY BUYER
-    # -----------------------------------------------------
-
-    if selected_buyers:
+    if filters["buyers"]:
 
         filtered = [
             row
             for row in filtered
-            if row.get("buyer") in selected_buyers
+            if row.get("buyer")
+            in filters["buyers"]
         ]
 
 
-    # -----------------------------------------------------
-    # APPLY SUPPLIER
-    # -----------------------------------------------------
-
-    if selected_suppliers:
+    if filters["suppliers"]:
 
         filtered = [
             row
             for row in filtered
-            if row.get("supplier") in selected_suppliers
+            if row.get("supplier")
+            in filters["suppliers"]
         ]
 
 
-    # -----------------------------------------------------
-    # APPLY ARTICLE
-    # -----------------------------------------------------
-
-    if selected_articles:
+    if filters["articles"]:
 
         filtered = [
             row
             for row in filtered
-            if row.get("article") in selected_articles
+            if row.get("article")
+            in filters["articles"]
         ]
 
 
-    # -----------------------------------------------------
-    # APPLY COLOR
-    # -----------------------------------------------------
-
-    if selected_colors:
+    if filters["colors"]:
 
         filtered = [
             row
             for row in filtered
-            if row.get("color") in selected_colors
+            if row.get("color")
+            in filters["colors"]
         ]
 
 
@@ -356,10 +386,98 @@ def apply_sidebar_filters(rows, prefix):
 
 
 # =========================================================
+# SORT
+# =========================================================
+
+def sort_rows(rows, filters):
+
+    sort_by = filters["sort_by"]
+
+    descending = (
+        filters["sort_direction"]
+        == "Highest / Newest first"
+    )
+
+
+    def sort_value(row):
+
+        if sort_by == "Lead Days":
+
+            value = lead_days(row)
+
+            return (
+                value
+                if value is not None
+                else -1
+            )
+
+
+        if sort_by == "Order Date":
+
+            value = parse_date(
+                row.get("order_date")
+            )
+
+            return (
+                value
+                if value
+                else date.min
+            )
+
+
+        if sort_by == "Quantity":
+
+            return int(
+                row.get("quantity") or 0
+            )
+
+
+        if sort_by == "Buyer":
+
+            return str(
+                row.get("buyer") or ""
+            ).lower()
+
+
+        if sort_by == "Article":
+
+            return str(
+                row.get("article") or ""
+            ).lower()
+
+
+        if sort_by == "Supplier":
+
+            return str(
+                row.get("supplier") or ""
+            ).lower()
+
+
+        if sort_by == "Color":
+
+            return str(
+                row.get("color") or ""
+            ).lower()
+
+
+        return ""
+
+
+    return sorted(
+        rows,
+        key=sort_value,
+        reverse=descending,
+    )
+
+
+# =========================================================
 # UPDATE REMARKS
 # =========================================================
 
-def update_remarks(unique_id, remarks):
+def update_remarks(
+    unique_id,
+    remarks
+):
 
     result = (
         supabase
@@ -378,17 +496,21 @@ def update_remarks(unique_id, remarks):
 
 
 # =========================================================
-# COMPLETE SAMPLE
+# COMPLETE ORDER
 # =========================================================
 
-def complete_order(unique_id, delivered_date):
+def complete_order(
+    unique_id,
+    delivered_date
+):
 
     result = (
         supabase
         .table(TABLE)
         .update({
             "status": "Completed",
-            "delivered_date": delivered_date.isoformat(),
+            "delivered_date":
+                delivered_date.isoformat(),
         })
         .eq(
             "unique_id",
@@ -401,7 +523,7 @@ def complete_order(unique_id, delivered_date):
 
 
 # =========================================================
-# SAMPLE DETAILS DIALOG
+# DETAILS DIALOG
 # =========================================================
 
 @st.dialog(
@@ -410,24 +532,19 @@ def complete_order(unique_id, delivered_date):
 )
 def show_sample_details(row):
 
-    indent_no = row.get(
-        "indent_no",
+    unique_id = row.get(
+        "unique_id",
         ""
     )
 
     article = row.get(
         "article",
-        ""
+        "—"
     )
 
     color = row.get(
         "color",
-        ""
-    )
-
-    unique_id = row.get(
-        "unique_id",
-        ""
+        "—"
     )
 
     status = row.get(
@@ -440,34 +557,30 @@ def show_sample_details(row):
     # HEADER
     # -----------------------------------------------------
 
-    st.subheader(
-        f"{article}"
-    )
+    st.subheader(article)
 
     st.caption(
-        f"{indent_no}  •  {color}"
+        f"{row.get('indent_no', '—')}  •  {color}"
     )
 
-
-    # -----------------------------------------------------
-    # STATUS
-    # -----------------------------------------------------
 
     if status == "WIP":
 
         st.info(
-            "🔵 This sample is currently WIP."
+            "This sample is currently WIP.",
+            icon="🔵"
         )
 
     else:
 
         st.success(
-            "✅ This sample is Completed."
+            "This sample is Completed.",
+            icon="✅"
         )
 
 
     # -----------------------------------------------------
-    # SAMPLE INFORMATION
+    # INFORMATION
     # -----------------------------------------------------
 
     st.markdown("### Sample Information")
@@ -475,52 +588,41 @@ def show_sample_details(row):
 
     c1, c2, c3 = st.columns(3)
 
-    c1.write("**Indent No.**")
-    c1.write(indent_no)
-
-    c2.write("**Order Date**")
-    c2.write(
-        format_date(
-            row.get("order_date")
-        )
-    )
-
-    c3.write("**Buyer**")
-    c3.write(
+    c1.metric(
+        "Buyer",
         row.get("buyer") or "—"
     )
 
-
-    c1, c2, c3 = st.columns(3)
-
-    c1.write("**Article**")
-    c1.write(article)
-
-    c2.write("**Color**")
-    c2.write(color)
-
-    c3.write("**Thickness**")
-    c3.write(
-        row.get("thickness_mm")
-        or "—"
+    c2.metric(
+        "Supplier",
+        row.get("supplier") or "—"
     )
 
-
-    c1, c2, c3 = st.columns(3)
-
-    c1.write("**Average Area**")
-    c1.write(
-        f"{float(row.get('avg_area_sdm') or 0):.2f} SDM"
-    )
-
-    c2.write("**Quantity**")
-    c2.write(
+    c3.metric(
+        "Quantity",
         f"{int(row.get('quantity') or 0):,}"
     )
 
-    c3.write("**Supplier**")
-    c3.write(
-        row.get("supplier") or "—"
+
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric(
+        "Thickness",
+        row.get("thickness_mm") or "—"
+    )
+
+    c2.metric(
+        "Avg. Area",
+        f"{float(row.get('avg_area_sdm') or 0):.2f} SDM"
+    )
+
+    days = lead_days(row)
+
+    c3.metric(
+        "Lead Days",
+        f"{days} days"
+        if days is not None
+        else "—"
     )
 
 
@@ -540,57 +642,47 @@ def show_sample_details(row):
         )
     )
 
-    c3.write("**Lead Days**")
-
-    days = lead_days(row)
-
-    c3.write(
-        f"{days} days"
-        if days is not None
-        else "—"
-    )
+    c3.write("**Status**")
+    c3.write(status)
 
 
     st.divider()
 
 
     # =====================================================
-    # OPTION 1 — UPDATE REMARKS
+    # OPTION 1 — REMARKS
     # =====================================================
 
-    st.markdown("### 📝 Update Remarks")
-
-    current_remarks = (
-        row.get("remarks")
-        or ""
+    st.markdown(
+        "### 📝 Update Remarks"
     )
+
 
     remarks = st.text_area(
         "Remarks",
-        value=current_remarks,
-        placeholder="Enter sample remarks...",
+        value=row.get("remarks") or "",
+        placeholder="Enter remarks...",
         key=f"remarks_{unique_id}",
     )
 
 
     if st.button(
-        "💾 Update Remarks",
-        type="secondary",
+        "Update Remarks",
         use_container_width=True,
-        key=f"update_remarks_{unique_id}",
+        key=f"update_{unique_id}",
     ):
 
         try:
 
-            updated = update_remarks(
+            result = update_remarks(
                 unique_id,
                 remarks
             )
 
-            if updated:
+            if result:
 
                 st.success(
-                    "Remarks updated successfully."
+                    "Remarks updated."
                 )
 
                 st.rerun()
@@ -609,7 +701,7 @@ def show_sample_details(row):
 
 
     # =====================================================
-    # OPTION 2 — COMPLETE ORDER
+    # OPTION 2 — COMPLETE
     # =====================================================
 
     if status == "WIP":
@@ -620,10 +712,6 @@ def show_sample_details(row):
             "### ✅ Complete Order"
         )
 
-        st.caption(
-            "Select the date on which the sample was delivered."
-        )
-
         delivered_date = st.date_input(
             "Delivered Date",
             value=date.today(),
@@ -632,7 +720,7 @@ def show_sample_details(row):
 
 
         if st.button(
-            "✅ Complete Order",
+            "Complete Order",
             type="primary",
             use_container_width=True,
             key=f"complete_{unique_id}",
@@ -640,12 +728,12 @@ def show_sample_details(row):
 
             try:
 
-                updated = complete_order(
+                result = complete_order(
                     unique_id,
                     delivered_date
                 )
 
-                if updated:
+                if result:
 
                     st.success(
                         "Sample marked as Completed."
@@ -670,11 +758,14 @@ def show_sample_details(row):
 # SAMPLE CARD
 # =========================================================
 
-def render_sample_card(row, card_number):
+def render_sample_card(
+    row,
+    card_key
+):
 
     unique_id = row.get(
         "unique_id",
-        f"sample_{card_number}"
+        card_key
     )
 
     article = row.get(
@@ -682,13 +773,13 @@ def render_sample_card(row, card_number):
         "—"
     )
 
-    color = row.get(
-        "color",
+    indent_no = row.get(
+        "indent_no",
         "—"
     )
 
-    indent_no = row.get(
-        "indent_no",
+    color = row.get(
+        "color",
         "—"
     )
 
@@ -702,48 +793,41 @@ def render_sample_card(row, card_number):
         "—"
     )
 
-    quantity = int(
-        row.get("quantity") or 0
-    )
-
-    avg_area = float(
-        row.get("avg_area_sdm") or 0
-    )
-
     thickness = row.get(
         "thickness_mm",
         "—"
     )
 
-    remarks = row.get(
-        "remarks"
+    quantity = int(
+        row.get("quantity") or 0
     )
 
     days = lead_days(row)
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # CARD
-    # -----------------------------------------------------
+    # =====================================================
 
     with st.container(
-        border=True
+        border=True,
+        key=f"card_{card_key}",
     ):
 
         # -------------------------------------------------
-        # CARD HEADER
+        # TITLE
         # -------------------------------------------------
 
-        top_left, top_middle, top_right = st.columns(
-            [4, 2, 1],
+        title_col, status_col, view_col = st.columns(
+            [4.2, 1.6, 0.9],
             vertical_alignment="center",
         )
 
 
-        with top_left:
+        with title_col:
 
-            st.subheader(
-                article
+            st.markdown(
+                f"### {article}"
             )
 
             st.caption(
@@ -751,40 +835,31 @@ def render_sample_card(row, card_number):
             )
 
 
-        with top_middle:
+        with status_col:
 
-            if row.get("status") == "WIP":
-
-                st.info(
-                    "WIP",
-                    icon="🔵"
-                )
-
-            else:
-
-                st.success(
-                    "Completed",
-                    icon="✅"
-                )
+            st.badge(
+                "WIP",
+                icon=":material/pending:",
+            )
 
 
-        with top_right:
+        with view_col:
 
             if st.button(
-                "View Details",
-                key=f"details_{unique_id}",
+                "View",
+                key=f"view_{unique_id}",
                 use_container_width=True,
             ):
 
                 show_sample_details(row)
 
 
-        # -------------------------------------------------
-        # MAIN DETAILS
-        # -------------------------------------------------
-
         st.divider()
 
+
+        # -------------------------------------------------
+        # DETAILS
+        # -------------------------------------------------
 
         c1, c2, c3, c4, c5 = st.columns(
             5,
@@ -833,26 +908,14 @@ def render_sample_card(row, card_number):
                 st.write("—")
 
 
-        # -------------------------------------------------
-        # REMARKS
-        # -------------------------------------------------
-
-        if remarks:
-
-            st.divider()
-
-            st.caption("Remarks")
-
-            st.write(
-                remarks
-            )
-
-
 # =========================================================
 # TABLE
 # =========================================================
 
-def display_table(rows, key):
+def display_table(
+    rows,
+    key
+):
 
     display_rows = []
 
@@ -860,73 +923,47 @@ def display_table(rows, key):
 
         display_rows.append({
 
-            "Indent No.": row.get(
-                "indent_no",
-                ""
-            ),
+            "Indent No.":
+                row.get("indent_no", ""),
 
-            "Order Date": row.get(
-                "order_date",
-                ""
-            ),
+            "Order Date":
+                row.get("order_date", ""),
 
-            "Buyer": row.get(
-                "buyer",
-                ""
-            ),
+            "Buyer":
+                row.get("buyer", ""),
 
-            "Article": row.get(
-                "article",
-                ""
-            ),
+            "Article":
+                row.get("article", ""),
 
-            "Color": row.get(
-                "color",
-                ""
-            ),
+            "Color":
+                row.get("color", ""),
 
-            "Thickness": row.get(
-                "thickness_mm",
-                ""
-            ),
+            "Thickness":
+                row.get("thickness_mm", ""),
 
-            "Avg. Area (SDM)": row.get(
-                "avg_area_sdm",
-                ""
-            ),
+            "Avg. Area (SDM)":
+                row.get("avg_area_sdm", ""),
 
-            "Quantity": row.get(
-                "quantity",
-                ""
-            ),
+            "Quantity":
+                row.get("quantity", ""),
 
-            "Remarks": row.get(
-                "remarks",
-                ""
-            ),
+            "Remarks":
+                row.get("remarks", ""),
 
-            "Supplier": row.get(
-                "supplier",
-                ""
-            ),
+            "Supplier":
+                row.get("supplier", ""),
 
-            "Delivered Date": row.get(
-                "delivered_date"
-            ) or "",
+            "Delivered Date":
+                row.get("delivered_date") or "",
 
-            "Status": row.get(
-                "status",
-                ""
-            ),
+            "Status":
+                row.get("status", ""),
 
-            "Lead Days": lead_days(
-                row
-            ),
+            "Lead Days":
+                lead_days(row),
 
-            "Unique ID": row.get(
-                "unique_id",
-                ""
-            ),
+            "Unique ID":
+                row.get("unique_id", ""),
         })
 
 
@@ -937,20 +974,23 @@ def display_table(rows, key):
 
         column_config={
 
-            "Avg. Area (SDM)": st.column_config.NumberColumn(
-                "Avg. Area (SDM)",
-                format="%.2f",
-            ),
+            "Avg. Area (SDM)":
+                st.column_config.NumberColumn(
+                    "Avg. Area (SDM)",
+                    format="%.2f",
+                ),
 
-            "Quantity": st.column_config.NumberColumn(
-                "Quantity",
-                format="%d",
-            ),
+            "Quantity":
+                st.column_config.NumberColumn(
+                    "Quantity",
+                    format="%d",
+                ),
 
-            "Lead Days": st.column_config.NumberColumn(
-                "Lead Days",
-                format="%d",
-            ),
+            "Lead Days":
+                st.column_config.NumberColumn(
+                    "Lead Days",
+                    format="%d",
+                ),
         },
 
         key=key,
@@ -979,92 +1019,74 @@ def add_sample_page():
         c1, c2, c3 = st.columns(3)
 
 
-        with c1:
-
-            indent_no = st.text_input(
-                "Indent No. *",
-                placeholder="Enter indent number",
-            )
+        indent_no = c1.text_input(
+            "Indent No. *",
+            placeholder="Enter indent number",
+        )
 
 
-        with c2:
-
-            order_date = st.date_input(
-                "Order Date *",
-                value=date.today(),
-            )
+        order_date = c2.date_input(
+            "Order Date *",
+            value=date.today(),
+        )
 
 
-        with c3:
-
-            buyer = st.selectbox(
-                "Buyer *",
-                BUYERS,
-                index=None,
-                placeholder="Select or type buyer",
-                accept_new_options=True,
-            )
+        buyer = c3.selectbox(
+            "Buyer *",
+            BUYERS,
+            index=None,
+            placeholder="Select or type buyer",
+            accept_new_options=True,
+        )
 
 
         c1, c2, c3 = st.columns(3)
 
 
-        with c1:
-
-            article = st.text_input(
-                "Article *",
-                placeholder="Enter article",
-            )
+        article = c1.text_input(
+            "Article *",
+            placeholder="Enter article",
+        )
 
 
-        with c2:
-
-            color = st.text_input(
-                "Color *",
-                placeholder="Enter color",
-            )
+        color = c2.text_input(
+            "Color *",
+            placeholder="Enter color",
+        )
 
 
-        with c3:
-
-            thickness = st.text_input(
-                "Thickness (mm) *",
-                placeholder="e.g. 0.6-0.7",
-            )
+        thickness = c3.text_input(
+            "Thickness (mm) *",
+            placeholder="e.g. 0.6-0.7",
+        )
 
 
         c1, c2, c3 = st.columns(3)
 
 
-        with c1:
-
-            avg_area = st.number_input(
-                "Avg. Area (SDM) *",
-                min_value=0.0,
-                step=0.01,
-                format="%.2f",
-            )
+        avg_area = c1.number_input(
+            "Avg. Area (SDM) *",
+            min_value=0.0,
+            step=0.01,
+            format="%.2f",
+        )
 
 
-        with c2:
-
-            quantity = st.number_input(
-                "Quantity *",
-                min_value=0,
-                step=1000,
-                value=0,
-            )
+        quantity = c2.number_input(
+            "Quantity *",
+            min_value=0,
+            step=1000,
+            value=0,
+        )
 
 
-        with c3:
-
-            supplier = st.selectbox(
-                "Supplier *",
-                SUPPLIERS,
-                index=None,
-                placeholder="Select or type supplier",
-                accept_new_options=True,
-            )
+        supplier = c3.selectbox(
+            "Supplier *",
+            SUPPLIERS,
+            index=None,
+            placeholder="Select or type supplier",
+            accept_new_options=True,
+        )
 
 
         remarks = st.text_area(
@@ -1079,14 +1101,9 @@ def add_sample_page():
             and color
         ):
 
-            unique_id_preview = make_unique_id(
-                indent_no,
-                article,
-                color
-            )
-
             st.info(
-                f"**Unique ID:** {unique_id_preview}"
+                f"**Unique ID:** "
+                f"{make_unique_id(indent_no, article, color)}"
             )
 
 
@@ -1103,21 +1120,13 @@ def add_sample_page():
 
 
             required = {
-
                 "Indent No.": indent_no,
-
                 "Buyer": buyer,
-
                 "Article": article,
-
                 "Color": color,
-
                 "Thickness (mm)": thickness,
-
                 "Avg. Area (SDM)": avg_area,
-
                 "Quantity": quantity,
-
                 "Supplier": supplier,
             }
 
@@ -1155,7 +1164,7 @@ def add_sample_page():
                 st.error(
                     "Please complete: "
                     + ", ".join(missing)
-                    + ". Your entered values have been retained."
+                    + ". Your existing entries have been retained."
                 )
 
             else:
@@ -1187,7 +1196,6 @@ def add_sample_page():
                             f"This sample already exists: "
                             f"{unique_id}"
                         )
-
 
                     else:
 
@@ -1281,6 +1289,31 @@ except Exception as exc:
     st.stop()
 
 
+# =========================================================
+# SHARED SIDEBAR
+# =========================================================
+#
+# IMPORTANT:
+# This is intentionally called ONLY ONCE.
+#
+# Previously it was called inside both tabs, which caused:
+#
+# Filters
+# Filters
+#
+# to appear in the sidebar.
+#
+# =========================================================
+
+filters = sidebar_filters(
+    all_rows
+)
+
+
+# =========================================================
+# FILTER WIP / COMPLETED
+# =========================================================
+
 wip_rows = [
     row
     for row in all_rows
@@ -1293,6 +1326,24 @@ completed_rows = [
     for row in all_rows
     if row.get("status") == "Completed"
 ]
+
+
+filtered_wip = sort_rows(
+    apply_filters(
+        wip_rows,
+        filters
+    ),
+    filters
+)
+
+
+filtered_completed = sort_rows(
+    apply_filters(
+        completed_rows,
+        filters
+    ),
+    filters
+)
 
 
 # =========================================================
@@ -1314,8 +1365,8 @@ st.caption(
 
 tab_wip, tab_completed, tab_add = st.tabs(
     [
-        f"📋 Sample WIP  ·  {len(wip_rows)}",
-        f"✅ Sample Completed  ·  {len(completed_rows)}",
+        f"📋 Sample WIP · {len(wip_rows)}",
+        f"✅ Sample Completed · {len(completed_rows)}",
         "➕ Add Sample",
     ]
 )
@@ -1326,12 +1377,6 @@ tab_wip, tab_completed, tab_add = st.tabs(
 # =========================================================
 
 with tab_wip:
-
-    filtered_wip = apply_sidebar_filters(
-        wip_rows,
-        "wip"
-    )
-
 
     # -----------------------------------------------------
     # SUMMARY
@@ -1384,21 +1429,24 @@ with tab_wip:
 
 
     # -----------------------------------------------------
-    # SAMPLE CARDS
+    # LIST HEADER
+    # -----------------------------------------------------
+
+    st.subheader(
+        f"Samples · {len(filtered_wip)}"
+    )
+
+    st.caption(
+        f"Sorted by {filters['sort_by']} · "
+        f"{filters['sort_direction']}"
+    )
+
+
+    # -----------------------------------------------------
+    # CARDS
     # -----------------------------------------------------
 
     if filtered_wip:
-
-        st.subheader(
-            f"Samples · {len(filtered_wip)}"
-        )
-
-        st.caption(
-            "Select a sample card to view details, update remarks or complete the order."
-        )
-
-
-        # 2 cards per row
 
         for i in range(
             0,
@@ -1421,7 +1469,7 @@ with tab_wip:
 
                     render_sample_card(
                         row,
-                        i
+                        f"wip_{i}"
                     )
 
 
@@ -1462,12 +1510,6 @@ with tab_wip:
 # =========================================================
 
 with tab_completed:
-
-    filtered_completed = apply_sidebar_filters(
-        completed_rows,
-        "completed"
-    )
-
 
     # -----------------------------------------------------
     # SUMMARY
@@ -1520,19 +1562,24 @@ with tab_completed:
 
 
     # -----------------------------------------------------
-    # COMPLETED CARDS
+    # LIST HEADER
+    # -----------------------------------------------------
+
+    st.subheader(
+        f"Completed Samples · {len(filtered_completed)}"
+    )
+
+    st.caption(
+        f"Sorted by {filters['sort_by']} · "
+        f"{filters['sort_direction']}"
+    )
+
+
+    # -----------------------------------------------------
+    # CARDS
     # -----------------------------------------------------
 
     if filtered_completed:
-
-        st.subheader(
-            f"Completed Samples · {len(filtered_completed)}"
-        )
-
-        st.caption(
-            "Select a sample to view its complete details."
-        )
-
 
         for i in range(
             0,
@@ -1592,13 +1639,10 @@ with tab_completed:
 
 
 # =========================================================
-# ADD SAMPLE TAB
+# ADD SAMPLE
 # =========================================================
 
 with tab_add:
-
-    # Hide the sidebar filters on Add Sample page
-    # by simply showing the form in the main area.
 
     add_sample_page()
 
