@@ -542,7 +542,7 @@ def render_sample_card(row):
 
         with title_col:
             st.markdown(f"### {article}")
-            st.caption(f"{indent_no}  •  {color}")
+            st.caption(f"{color}  •  {Buyer}")
 
         with status_col:
             if status == "Completed":
@@ -565,29 +565,29 @@ def render_sample_card(row):
         c1, c2, c3 = st.columns(3, vertical_alignment="top")
 
         with c1:
-            st.caption("Buyer")
+            st.caption("Thickness")
             st.write(buyer)
 
         with c2:
-            st.caption("Supplier")
+            st.caption("Avg. Area")
             st.write(supplier)
 
         with c3:
-            st.caption("Thickness")
+            st.caption("Quantity")
             st.write(thickness)
 
         c1, c2, c3 = st.columns(3, vertical_alignment="top")
 
         with c1:
-            st.caption("Quantity")
+            st.caption("indent_no")
             st.write(f"{quantity:,}")
 
         with c2:
-            st.caption("Avg. Area")
+            st.caption("Lead Days")
             st.write(f"{avg_area:.2f} SDM")
 
         with c3:
-            st.caption("Lead Days")
+            st.caption("Supplier")
             st.write(f"{days} days" if days is not None else "—")
 
 # =========================================================
